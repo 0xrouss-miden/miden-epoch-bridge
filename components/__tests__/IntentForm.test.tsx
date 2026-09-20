@@ -9,7 +9,7 @@
  * lines 188-195, "Add focused balance-format tests".
  *
  * Mocks the wagmi + wallet-adapter surfaces because IntentForm pulls
- * `useAccount` (wagmi), `useMidenFiWallet` (Miden wallet adapter), and
+ * `useAccount` (wagmi), `useWallet` (Miden wallet adapter), and
  * `useSyncState` (`@miden-sdk/react`) at the top of the file — none of those
  * are exercised by these tests, but they must resolve to avoid runtime errors
  * when IntentForm renders.
@@ -29,7 +29,7 @@ vi.mock('@miden-sdk/miden-sdk', () => ({
   Address: { fromBech32: vi.fn(() => ({ accountId: () => ({ toString: () => '0x0' }) })) },
 }));
 vi.mock('@miden-sdk/miden-wallet-adapter-react', () => ({
-  useMidenFiWallet: () => ({
+  useWallet: () => ({
     connected: false,
     address: null,
     requestSend: vi.fn(),

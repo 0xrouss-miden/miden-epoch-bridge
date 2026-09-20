@@ -1,6 +1,8 @@
 import { epochMidenToken } from "@/lib/epoch-tokens";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useMidenFiWallet } from "@miden-sdk/miden-wallet-adapter-react";
+import { useWallet } from "@miden-sdk/miden-wallet-adapter-react";
+import { AllowedPrivateData, PrivateDataPermission, WalletAdapterNetwork } from "@miden-sdk/miden-wallet-adapter-base";
+import { MIDEN_NETWORK } from "@/config";
 import { useAssetMetadata, toBech32AccountId } from "@miden-sdk/react";
 import { AccountId, Address } from "@miden-sdk/miden-sdk";
 import type { Asset } from "@miden-sdk/miden-wallet-adapter-base";
@@ -23,6 +25,7 @@ export interface UseMidenWalletAdapterOptions {
 
 export interface UseMidenWalletAdapterResult {
   connected: boolean;
+  connecting: boolean;
   connect: () => Promise<void>;
   address: string | null;
   accountId: NormalizedMidenAccountId | null;
@@ -86,11 +89,11 @@ export function useMidenWalletAdapter(
 ): UseMidenWalletAdapterResult {
   const { enabled = true } = options;
   const {
-    connected,
+    connected, connecting, wallet, wallets, select,
     connect: adapterConnect,
     address,
     requestAssets,
-  } = useMidenFiWallet();
+  } = useWallet();
 
   const accountId = useMemo(() => normalizeAccountId(address), [address]);
   const [rawAssets, setRawAssets] = useState<Asset[]>([]);
@@ -159,10 +162,40 @@ export function useMidenWalletAdapter(
     [rawAssets, assetMetadata],
   );
 
-  const connect = useCallback(async () => {
-    if (!connected) await adapterConnect();
-    await refreshAssets();
-  }, [connected, adapterConnect, refreshAssets]);
+  const pendingConnect = useRef<{
+    promise: Promise<void>; resolve: () => void; reject: (error: unknown) => void;
+  } | null>(null);
+  const [connectRequested, setConnectRequested] = useState(false);
+  const connectStarted = useRef(false);
+
+  useEffect(() => {
+    if (!connectRequested || !wallet || connectStarted.current) return;
+    connectStarted.current = true;
+    const network = MIDEN_NETWORK === "devnet" ? WalletAdapterNetwork.Devnet
+      : MIDEN_NETWORK === "local" ? WalletAdapterNetwork.Localnet : WalletAdapterNetwork.Testnet;
+    void adapterConnect(PrivateDataPermission.UponRequest, network, AllowedPrivateData.Assets)
+      .then(() => pendingConnect.current?.resolve())
+      .catch(error => pendingConnect.current?.reject(error))
+      .finally(() => {
+        pendingConnect.current = null;
+        connectStarted.current = false;
+        setConnectRequested(false);
+      });
+  }, [connectRequested, wallet, adapterConnect]);
+
+  const connect = useCallback((): Promise<void> => {
+    if (connected) return refreshAssets();
+    if (pendingConnect.current) return pendingConnect.current.promise;
+    const candidate = wallet ?? wallets[0];
+    if (!candidate) return Promise.reject(new Error("Bread Wallet is not available."));
+    let resolve!: () => void;
+    let reject!: (error: unknown) => void;
+    const promise = new Promise<void>((yes, no) => { resolve = yes; reject = no; });
+    pendingConnect.current = { promise, resolve, reject };
+    if (!wallet) select(candidate.adapter.name);
+    setConnectRequested(true);
+    return promise;
+  }, [connected, refreshAssets, wallet, wallets, select]);
 
   useEffect(() => {
     if (!enabled || !connected) {
@@ -176,6 +209,7 @@ export function useMidenWalletAdapter(
 
   return {
     connected,
+    connecting: connecting || connectRequested,
     connect,
     address,
     accountId,

@@ -2,11 +2,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SelectContent, SelectItem, SelectRoot, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useMidenFiWallet } from '@miden-sdk/miden-wallet-adapter-react';
+import { useWallet } from '@miden-sdk/miden-wallet-adapter-react';
 import { Transaction } from '@miden-sdk/miden-wallet-adapter-base';
-import { AccountId, NoteArray } from '@miden-sdk/miden-sdk';
+import { AccountId, NoteArray, TransactionRequestBuilder } from '@miden-sdk/miden-sdk';
 import { useMiden, useSyncState } from '@miden-sdk/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import type { CrossChainIntentParams } from '../../types/miden';
 import type { CrossChainQuote } from '../../services/epoch-bridge';
@@ -58,8 +58,8 @@ export function IntentForm({
   intentNonce,
   intentUserAddress,
 }: Props) {
-  const { requestTransaction, waitForTransaction } = useMidenFiWallet();
-  const { client, runExclusive } = useMiden();
+  const { requestTransaction, waitForTransaction } = useWallet();
+  const { client, runExclusive, error: clientError } = useMiden();
   const { syncHeight } = useSyncState();
 
   const [selectedAssetId, setSelectedAssetId] = useState('');
@@ -74,6 +74,7 @@ export function IntentForm({
   const hasValidDestinationChainId = Number.isInteger(destinationChainIdNum) && destinationChainIdNum > 0;
   const { address } = useAccount();
   const [evmAddress, setEvmAddress] = useState(address ?? '');
+  useEffect(() => { setEvmAddress(address ?? ''); onClearQuote(); }, [address, onClearQuote]);
 
   const effectiveIntentNonce = localIntentNonce ?? intentNonce;
   const effectiveIntentUserAddress = localIntentUserAddress ?? intentUserAddress;
@@ -213,7 +214,8 @@ export function IntentForm({
             amount: BigInt(amountParam), currentBlock: head.blockNum(),
             recallBlocks, bindingAttachmentFelts,
           });
-          const builder = await client.feeAwareTransactionRequestBuilder(AccountId.fromHex(midenAccountId));
+          // Build the note request without importing the private account; Bread executes it.
+          const builder = new TransactionRequestBuilder();
           return {
             expectedNoteId: note.id().toString(),
             request: builder.withOwnOutputNotes(new NoteArray([note])).build(),
@@ -464,6 +466,9 @@ export function IntentForm({
             Connect your EVM wallet to request a quote.
           </p>
         )}
+
+        {clientError && <p role="alert" className="text-sm text-red-600">Miden client: {clientError.message}</p>}
+        {!clientError && !(syncHeight > 0) && <p role="status" className="text-sm text-amber-800">Waiting for Miden chain sync before requesting a quote.</p>}
 
         {confirmStatus && (
           <p className={`text-sm ${confirmStatus.startsWith('Error') ? 'text-red-600' : 'text-amber-800'}`}>

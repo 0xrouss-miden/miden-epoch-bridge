@@ -8,6 +8,7 @@
         "@epoch-protocol/epoch-intents-sdk": "1.0.39",
         "@miden-sdk/miden-sdk": "0.16.0",
         "@miden-sdk/miden-wallet-adapter-base": "0.16.0",
+        "@miden-sdk/miden-wallet-adapter-miden": "0.16.0",
         "@miden-sdk/miden-wallet-adapter-react": "0.16.0",
         "@miden-sdk/react": "0.16.0",
         "@phosphor-icons/react": "^2.1.10",

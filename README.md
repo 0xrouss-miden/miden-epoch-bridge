@@ -7,11 +7,11 @@ A testnet bridge between Ethereum Sepolia and Miden, built with Next.js, the Epo
 ## Requirements
 
 - Bun 1.3.14
-- An injected EVM wallet, such as MetaMask, connected to Sepolia
+- An EVM wallet connected through Reown AppKit (injected or WalletConnect), on Sepolia
 - Bread Wallet for Miden Testnet
 - Test tokens and sufficient funds for transaction fees
 
-WalletConnect is optional and requires a Reown project ID.
+Set `NEXT_PUBLIC_REOWN_PROJECT_ID` to enable Reown AppKit and WalletConnect. Without it, local development falls back to injected EVM wallets.
 
 ## Local development
 
@@ -52,6 +52,12 @@ Only these five Epoch test tokens are selectable. The Miden asset list filters w
 | WBTC | `0x9b2a2754a9182fD65360E23afCDf3BeFF51796E9` | `0x5fd2e6fd17712c51404d09c2b847f7` |
 
 Mappings are defined in `lib/epoch-tokens.ts`, based on the [Epoch faucet dashboard](https://userdashboard.epochprotocol.xyz/faucets). Epoch test USDC is distinct from Circle USDC used by the AggLayer bridge.
+
+## Wallet integration
+
+EVM connections use Reown AppKit with Wagmi on Sepolia. Bread connections use `WalletProvider` and `useWallet` from the Miden wallet adapter. The app requests asset access and sends custom transaction requests to Bread for approval and execution.
+
+The independent `MidenProvider` synchronizes public chain data and supports collateral-note construction. It does not import the connected private account or use `MidenFiSignerProvider`. A withdrawal quote requires chain synchronization, a connected wallet, and a supported asset balance.
 
 ## Transfer flows
 

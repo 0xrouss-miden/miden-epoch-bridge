@@ -39,7 +39,7 @@ function Bridge() {
         <button className={tab === "network" ? "active" : ""} onClick={() => setTab("network")}>Settings</button>
       </nav>
       <div className="header-actions"><span className="testnet-badge"><span />Testnet</span>
-        <button className="button wallet-button" disabled={evmConnecting} onClick={account.isConnected ? () => disconnect() : connectEvm}><Wallet size={16}/>{evmConnecting ? "Connecting…" : account.isConnected && account.address ? `${short(account.address)} · Disconnect` : "Connect MetaMask"}</button>
+        <button className="button wallet-button" disabled={evmConnecting} onClick={account.isConnected ? () => disconnect() : connectEvm}><Wallet size={16}/>{evmConnecting ? "Connecting…" : account.isConnected && account.address ? `${short(account.address)} · Disconnect` : "Connect EVM wallet"}</button>
       </div>
     </div></header>
     <main id="main" className="main">
@@ -59,7 +59,7 @@ function Bridge() {
           <aside className="epoch-aside">
             <section className="epoch-wallets"><h2>Your wallets</h2><p className="muted">Connect both to get a quote and transfer.</p>
               <div className="epoch-wallet-row"><div><strong>Sepolia</strong><p className="muted small">{account.address ? short(account.address) : "MetaMask or WalletConnect"}</p></div><button className="button" disabled={account.isConnected || evmConnecting} onClick={connectEvm}>{evmConnecting ? "Connecting…" : account.isConnected ? "Connected" : "Connect"}</button></div>
-              <div className="epoch-wallet-row"><div><strong>Miden</strong><p className="muted small">{miden.accountId?.hex ? short(miden.accountId.hex) : "Bread Wallet"}</p></div><button className="button" disabled={miden.connected} onClick={() => void miden.connect().catch(error => toast.error(error instanceof Error ? error.message : "Could not connect Bread"))}>{miden.connected ? "Connected" : "Connect"}</button></div>
+              <div className="epoch-wallet-row"><div><strong>Miden</strong><p className="muted small">{miden.accountId?.hex ? short(miden.accountId.hex) : "Bread Wallet"}</p></div><button className="button" disabled={miden.connected || miden.connecting} onClick={() => void miden.connect().catch(error => toast.error(error instanceof Error ? error.message : "Could not connect Bread"))}>{miden.connecting ? "Connecting…" : miden.connected ? "Connected" : "Connect"}</button></div>
             </section>
             <section className="epoch-guide"><h2>How it works</h2><ol><li><strong>Get a quote</strong><p>Epoch calculates the amount needed to receive your chosen tokens.</p></li><li><strong>Review and sign</strong><p>Confirm the quote and authorize the transaction in your wallet.</p></li><li><strong>Receive your tokens</strong><p>{direction === "deposit" ? "On Miden, consume the received note to add the tokens to your balance." : "Track intent settlement on Sepolia and check the tokens in your EVM wallet."}</p></li></ol></section>
             <div className="notice"><Layers size={18}/><p>Epoch tutorial tokens are test assets. Epoch USDC is different from the Circle USDC used by the AggLayer bridge.</p></div>

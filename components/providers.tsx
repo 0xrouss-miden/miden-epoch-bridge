@@ -6,13 +6,17 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from "wagmi";
 import { createAppKit } from "@reown/appkit/react";
 import { sepolia } from "@reown/appkit/networks";
-import { MidenFiSignerProvider } from "@miden-sdk/miden-wallet-adapter-react";
+import { WalletProvider } from "@miden-sdk/miden-wallet-adapter-react";
+import { MidenWalletAdapter } from "@miden-sdk/miden-wallet-adapter-miden";
 import {
   AllowedPrivateData,
+  PrivateDataPermission,
   WalletAdapterNetwork,
 } from "@miden-sdk/miden-wallet-adapter-base";
 import { adapter, projectId, wagmiConfig } from "@/lib/wallet-config";
 import { useState, type ReactNode } from "react";
+
+const midenWallets = [new MidenWalletAdapter({ appName: "Miden Epoch Bridge" })];
 
 export const appKit =
   adapter && projectId
@@ -53,8 +57,9 @@ export default function Providers({ children }: { children: ReactNode }) {
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <MidenFiSignerProvider
-          appName="Miden Epoch Bridge"
+        <WalletProvider
+          wallets={midenWallets}
+          privateDataPermission={PrivateDataPermission.UponRequest}
           network={MIDEN_NETWORK === "devnet" ? WalletAdapterNetwork.Devnet : MIDEN_NETWORK === "local" ? WalletAdapterNetwork.Localnet : WalletAdapterNetwork.Testnet}
           allowedPrivateData={AllowedPrivateData.Assets}
           autoConnect={false}
@@ -62,7 +67,7 @@ export default function Providers({ children }: { children: ReactNode }) {
           <MidenProvider config={{ rpcUrl: MIDEN_RPC_URL, prover: MIDEN_PROVER }} loadingComponent={<div className="boot">Connecting to Miden…</div>}>
             {children}<Toaster position="bottom-right" closeButton />
           </MidenProvider>
-        </MidenFiSignerProvider>
+        </WalletProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );
