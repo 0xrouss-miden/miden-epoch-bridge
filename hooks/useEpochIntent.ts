@@ -1,0 +1,123 @@
+import { useEpochSdk } from "@/lib/epoch-sdk";
+import { useState, useCallback, useEffect } from 'react';
+import { useAccount, useWalletClient } from 'wagmi';
+import {
+  buildCrossChainIntent,
+  getCrossChainQuote,
+  type CrossChainQuote,
+} from '../services/epoch-bridge';
+import type { CrossChainIntentParams, IntentResult } from '../types/miden';
+import { CollateralType, type SolveIntentParams } from '@epoch-protocol/epoch-intents-sdk/dist/types';
+
+export function useEpochIntent() {
+  const [intentResult, setIntentResult] = useState<IntentResult | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingQuote, setIsFetchingQuote] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pendingQuote, setPendingQuote] = useState<CrossChainQuote | null>(null);
+  const sdk = useEpochSdk(999999999);
+
+  const { data: walletClient } = useWalletClient();
+  const { address } = useAccount();
+
+
+
+  /** Step 1: fetch a reverse quote (tokenInAmount=0 → backend computes required Miden input). */
+  const fetchQuote = useCallback(async (params: CrossChainIntentParams) => {
+    if (!sdk) throw new Error('Epoch SDK not ready — connect EVM wallet first');
+    if (!address) throw new Error('Connect EVM wallet first');
+    setIsFetchingQuote(true);
+    setError(null);
+    setPendingQuote(null);
+    try {
+      const quote = await getCrossChainQuote(sdk, params, address);
+      setPendingQuote(quote);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Quote failed';
+      setError(msg);
+      throw err;
+    } finally {
+      setIsFetchingQuote(false);
+    }
+  }, [sdk, address]);
+
+  /** Step 2: execute the stored quote by creating the P2IDE note and submitting the intent. */
+  const confirmIntent = useCallback(async (
+    createMidenP2IDENote: SolveIntentParams['createMidenP2IDENote'],
+  ) => {
+    if (!sdk) throw new Error('Epoch SDK not ready');
+    if (!pendingQuote) throw new Error('Fetch a quote first');
+    setIsLoading(true);
+    setError(null);
+    setIntentResult(null);
+    try {
+      const result = await buildCrossChainIntent(sdk, {
+        ...pendingQuote.params,
+        collateralType: CollateralType.Miden,
+        midenSourceAccount: pendingQuote.params.midenAccountId,
+        createMidenP2IDENote,
+        preFetchedQuote: pendingQuote,
+      });
+      if (result?.error) {
+        // Keep the existing quote visible so user can retry confirmation.
+        setIntentResult(result);
+        setError(result.error);
+        throw new Error(result.error);
+      }
+      setIntentResult(result);
+      setPendingQuote(null);
+      return result;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to confirm intent';
+      setError(msg);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [sdk, pendingQuote]);
+
+  /** Direct-bridge path: skip quote, call buildCrossChainIntent with explicit midenAmount. */
+  const submitDirectIntent = useCallback(async (
+    params: CrossChainIntentParams,
+    createMidenP2IDENote: SolveIntentParams['createMidenP2IDENote'],
+  ) => {
+    if (!sdk) throw new Error('Epoch SDK not ready');
+    setIsLoading(true);
+    setError(null);
+    setIntentResult(null);
+    try {
+      const result = await buildCrossChainIntent(sdk, {
+        ...params,
+        collateralType: CollateralType.Miden,
+        midenSourceAccount: params.midenAccountId,
+        createMidenP2IDENote,
+      });
+      setIntentResult(result);
+      return result;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to submit direct intent';
+      setError(msg);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [sdk]);
+
+  const clearQuote = useCallback(() => {
+    setPendingQuote(null);
+    setError(null);
+  }, []);
+
+  return {
+    fetchQuote,
+    confirmIntent,
+    submitDirectIntent,
+    clearQuote,
+    pendingQuote,
+    intentResult,
+    isLoading,
+    isFetchingQuote,
+    error,
+    isSDKReady: !!sdk,
+  };
+}

@@ -1,0 +1,28 @@
+diff --git a/dist/sdk/solve-intent.js b/dist/sdk/solve-intent.js
+index f7f18b351fa4edfe9bf33373e50c8bf76ce73fa0..066ba252d4eb050e1461b7b2b4cbebe5fd2ec42e 100644
+--- a/dist/sdk/solve-intent.js
++++ b/dist/sdk/solve-intent.js
+@@ -198,7 +198,22 @@ export async function solveIntent(config, params, callbacks) {
+                     throw new CompactSDKError(`Unknown collateral type: ${collateralType}`);
+             }
+             // Create the allocation — this triggers actual execution via SIO
+-            const allocationResponse = await createAllocation(config, createAllocationRequest);
++            let allocationResponse;
++            try {
++                allocationResponse = await createAllocation(config, createAllocationRequest);
++            } catch (error) {
++                // A failed HTTP response is not a reverted deposit or proof of failed settlement.
++                // Preserve the exact identity used by /compact for read-only reconciliation.
++                if (error instanceof Error) {
++                    error.epochSubmission = {
++                        nonce: nonce.toString(),
++                        intentRequestData: createAllocationRequest,
++                        depositResult,
++                        stage: "allocation-response-unknown",
++                    };
++                }
++                throw error;
++            }
+             return {
+                 depositResult,
+                 gaslessUsed: collateralType === CollateralType.EVM && gaslessUsed,

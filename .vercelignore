@@ -1,0 +1,12 @@
+node_modules
+.next
+.vercel
+.env*
+qa
+.impeccable
+**/__tests__
+*.tsbuildinfo
+coverage
+playwright-report
+test-results
+*.log
