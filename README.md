@@ -59,6 +59,8 @@ EVM connections use Reown AppKit with Wagmi on Sepolia. Bread connections use `W
 
 The independent `MidenProvider` synchronizes public chain data and supports collateral-note construction. It does not import the connected private account or use `MidenFiSignerProvider`. A withdrawal quote requires chain synchronization, a connected wallet, and a supported asset balance.
 
+Custom withdrawal requests target standard Bread accounts. Multisig accounts require additional fee-conversion data in SDK 0.16 and are not covered by this integration.
+
 ## Transfer flows
 
 ### Sepolia to Miden
